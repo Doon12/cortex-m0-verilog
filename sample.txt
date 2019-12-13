@@ -1,0 +1,465 @@
+  /* 
+	 LSLi
+	 LSRi
+	 ASRi
+	 ADDr1
+	 SUBr
+	 ADD3i
+	 SUB3i
+	 MOVi
+	 CMPi
+	 ADD8i
+	 SUB8i
+   */
+  if (IADDR[15: 14] == 0x0) begin
+
+
+	  /* LSLi */
+	  if (IADDR[13: 11] == 0x0) begin
+		  lsl_i(inst);
+	  end
+	  /* LSRi */
+	  else if (IADDR[13: 11] == 0x1) begin
+		  lsr_i(inst);
+	  end
+	  /* ASRi */
+	  else if (IADDR[13: 11] == 0x2) begin
+		  asr_i(inst);
+	  end
+	  else if (IADDR[13: 11] == 0x3) begin
+		  /* ADDr1 */
+		  if (IADDR[10: 9] == 0x0) begin
+			  add_r1(inst);
+		  end
+		  /* SUBr */
+		  else if (IADDR[10:9] == 0x1) begin
+			  sub_r(inst);
+		  end
+		  /* ADD3i */
+		  else if (IADDR[10:9] == 0x2) begin
+			  add_3i(inst);
+		  end
+		  /* SUB3i */
+		  else if (IADDR[10:9] == 0x3) begin
+			  sub_3i(inst);
+		  end
+	  end
+	  /* MOVi */
+	  else if (IADDR[13: 11] == 0x4) begin
+		  mov_i(inst);
+	  end
+	  /* CMPi */
+	  else if (IADDR[13: 11] == 0x5) begin
+		  cmp_i(inst);
+	  end
+	  /* ADD8i */
+	  else if (IADDR[13: 11] == 0x6) begin
+		  add_8i(inst);
+	  end
+	  /* SUB8i */
+	  else if (IADDR[13: 11] == 0x7) begin
+		  sub_8i(inst);
+	  end
+  end
+
+  /*
+	 ANDr
+	 EORr
+	 LSLr
+	 LSRr
+	 ASRr
+	 ADCr
+	 SBCr
+	 RORr
+	 TSTr
+	 RSBi
+	 CMPr1
+	 CMNr
+	 ORRr
+	 MUL
+	 BICr
+	 MVNr
+   */
+  else if (IADDR[15: 10] == 0x10) begin
+
+
+
+	  /* ANDr */
+	  if (IADDR[9: 6] == 0x0) begin
+		  and_r(inst);
+	  end
+	  /* EORr */
+	  else if (IADDR[9: 6] == 0x1) begin
+		  eor_r(inst);
+	  end
+	  /* LSLr */
+	  else if (IADDR[9: 6] == 0x2) begin
+		  lsl_r(inst);
+	  end
+	  /* LSRr */
+	  else if (IADDR[9: 6] == 0x3) begin
+		  lsr_r(inst);
+	  end
+	  /* ASRr */
+	  else if (IADDR[9: 6] == 0x4) begin
+		  asr_r(inst);
+	  end
+	  /* ADCr */
+	  else if (IADDR[9: 6] == 0x5) begin
+		  adc_r(inst);
+	  end
+	  /* SBCr */
+	  else if (IADDR[9: 6] == 0x6) begin
+		  sbc_r(inst);
+	  end
+	  /* RORr */
+	  else if (IADDR[9: 6] == 0x7) begin
+		  ror_r(inst);
+	  end
+	  /* TSTr */
+	  else if (IADDR[9: 6] == 0x8) begin
+		  tst_r(inst);
+	  end
+	  /* RSBi */
+	  else if (IADDR[9: 6] == 0x9) begin
+		  rsb_i(inst);
+	  end
+	  /* CMPr1 */
+	  else if (IADDR[9: 6] == 0xA) begin
+		  cmp_r1(inst);
+	  end
+	  /* CMNr */
+	  else if (IADDR[9: 6] == 0xB) begin
+		  cmn_r(inst);
+	  end
+	  /* ORRr */
+	  else if (IADDR[9: 6] == 0xC) begin
+		  orr_r(inst);
+	  end
+	  /* MUL */
+	  else if (IADDR[9: 6] == 0xD) begin
+		  mul(inst);
+	  end
+	  /* BICr */
+	  else if (IADDR[9: 6] == 0xE) begin
+		  bic_r(inst);
+	  end
+	  /* MVNr */
+	  else if (IADDR[9: 6] == 0xF) begin
+		  mvn_r(inst);
+	  end
+  end
+
+  /*
+	 ADDr2
+	 CMPr2
+	 MOVr1
+	 BX
+	 BLX
+   */
+  else if (IADDR[15: 10] == 0x11) begin
+
+
+
+
+
+	  /* ADDr2 */
+	  if (IADDR[9: 8] == 0x0) begin
+		  add_r2(inst);
+	  end
+	  /* CMPr2 */
+	  else if (IADDR[9: 8] == 0x1) begin
+		  cmp_r2(inst);
+	  end
+	  /* MOVr1 */
+	  else if (IADDR[9: 8] == 0x2) begin
+		  mov_r1(inst);
+	  end
+	  else if (IADDR[9: 8] == 0x3) begin
+		  /* BX */
+		  if (IADDR_[7) == 0x0) begin
+			  bx(inst);
+		  end
+		  /* BLX */
+		  else if (IADDR_(7) == 0x1) begin
+			  blx(inst);
+		  end
+	  end
+  end
+
+  /*
+	 LDR(PC-relative)
+   */
+  else if (IADDR(15: 11] == 0x09) begin
+
+
+
+
+
+	  ldr_pc_rel(inst);
+
+  end
+
+  /*
+	 STRr
+	 STRHr
+	 STRBr
+	 LDRSBr
+	 LDRr
+	 LDRHr
+	 LDRBr
+	 LDRSHr
+   */
+  else if (IADDR[15: 12] == 0x05) begin
+
+
+
+
+
+	  /* STRr */
+	  if (IADDR[11: 9] == 0x0) begin
+		  str_r(inst);
+	  end
+	  /* STRHr */
+	  else if (IADDR[11: 9] == 0x1) begin
+		  strh_r(inst);
+	  end
+	  /* STRBr */
+	  else if (IADDR[11: 9] == 0x2) begin
+		  strb_r(inst);
+	  end
+	  /* LDRSBr */
+	  else if (IADDR[11: 9] == 0x3) begin
+		  ldrsb_r(inst);
+	  end
+	  /* LDRr */
+	  else if (IADDR[11: 9] == 0x4) begin
+		  ldr_r(inst);
+	  end
+	  /* LDRHr */
+	  else if (IADDR[11: 9] == 0x5) begin
+		  ldrh_r(inst);
+	  end
+	  /* LDRBr */
+	  else if (IADDR[11: 9] == 0x6) begin
+		  ldrb_r(inst);
+	  end
+	  /* LDRSHr */
+	  else if (IADDR[11: 9] == 0x7) begin
+		  ldrsh_r(inst);
+	  end
+  end
+
+  /*
+	 STR5i
+	 LDR5i
+	 STRBi
+	 LDRBi
+   */
+  else if (IADDR[15: 13] == 0x03) begin
+
+
+
+
+
+	  /* STR5i */
+	  if (IADDR[12: 11] == 0x0) begin
+		  str_5i(inst);
+	  end
+	  /* LDR5i */
+	  else if (IADDR[12: 11] == 0x1) begin
+		  ldr_5i(inst);
+	  end
+	  /* STRBi */
+	  else if (IADDR[12: 11] == 0x2) begin
+		  strb_i(inst);
+	  end
+	  /* LDRBi */
+	  else if (IADDR[12: 11] == 0x3) begin
+		  ldrb_i(inst);
+	  end
+  end
+
+  /*
+	 STRHi
+	 LDRHi
+	 STR8i
+	 LDR8i
+   */
+  else if (IADDR[15: 13] == 0x04) begin
+
+
+
+
+
+	  /* STRHi */
+	  if (IADDR[12: 11] == 0x0) begin
+		  strh_i(inst);
+	  end
+	  /* LDRHi */
+	  else if (IADDR[12: 11] == 0x1) begin
+		  ldrh_i(inst);
+	  end
+	  /* STR8i */
+	  else if (IADDR[12: 11] == 0x2) begin
+		  str_8i(inst);
+	  end
+	  /* LDR8i */
+	  else if (IADDR[12: 11] == 0x3) begin
+		  ldr_8i(inst);
+	  end
+  end
+
+  /*
+	 ADR
+   */
+  else if (IADDR[15: 11] == 0x14) begin
+
+
+
+
+	  adr(inst);
+  end
+
+  /*
+	 ADDSPi1
+   */
+  else if (IADDR[15: 11] == 0x15) begin
+
+
+
+
+	  add_sp_i1(inst);
+  end
+
+  /*
+	 ADDSPi2
+	 SUBSPi
+	 SXTH
+	 SXTB
+	 UXTH
+	 UXTB
+	 PUSH
+	 REV
+	 REV16
+	 REVSH
+	 POP
+   */
+  else if (IADDR[15: 12] == 0x0B) begin
+
+
+
+
+	  if (IADDR[11: 8] == 0x0) begin
+		  /* ADDSPi2 */
+		  if (IADDR_[7) == 0x0) begin
+			  add_sp_i2(inst);
+		  end
+		  /* SUBSPi */
+		  else if (IADDR_(7) == 0x1) begin
+			  sub_sp_i(inst);
+		  end
+	  end
+	  else if (IADDR(11: 8] == 0x2) begin
+		  /* SXTH */
+		  if (IADDR[7: 6] == 0x0) begin
+			  sxth(inst);
+		  end
+		  /* SXTB */
+		  else if (IADDR[7: 6] == 0x1) begin
+			  sxtb(inst);
+		  end
+		  /* UXTH */
+		  else if (IADDR[7: 6] == 0x2) begin
+			  uxth(inst);
+		  end
+		  /* UXTB */
+		  else if (IADDR[7: 6] == 0x3) begin
+			  uxtb(inst);
+		  end
+	  end
+	  /* PUSH */
+	  else if (IADDR[11: 9] == 0x2) begin
+		  push(inst);
+	  end
+	  else if (IADDR[11: 9] == 0x5) begin
+		  if (IADDR_[8) == 0x0) begin
+			  /* REV */
+			  if (IADDR(7: 6] == 0x0) begin
+				  rev(inst);
+			  end
+			  /* REV16 */
+			  else if (IADDR[7: 6] == 0x1) begin
+				  rev16(inst);
+			  end
+			  /* REVSH */
+			  else if (IADDR[7: 6] == 0x3) begin
+				  revsh(inst);
+			  end
+		  end
+	  end
+	  /* POP */
+	  else if (IADDR[11: 9] == 0x6) begin
+		  pop(inst);
+	  end
+  end
+
+  /*
+	 STM
+   */
+  else if (IADDR[15: 11] == 0x18) begin
+
+
+
+
+	  stm(inst);
+  end
+
+  /*
+	 LDM
+   */
+  else if (IADDR[15: 11] == 0x19) begin
+
+
+
+
+	  ldm(inst);
+  end
+
+  /*
+	 B (conditional)
+   */
+  else if (IADDR[15: 12] == 0x0D) begin
+
+
+
+
+	  b_conditional(inst);
+  end
+
+  /* Already Implemented. */
+  else if (IADDR[15: 11] == 0x1C) begin
+
+
+
+
+	  b_unconditional(inst);
+  end
+  else if (IADDR[15: 11] == 0x1E) begin
+
+
+
+
+	  inst2 = read_halfword(EXE_PC + 2);
+	  inst32 = ((uint32_t) inst << 16) | ((uint32_t) inst2);
+
+
+	  if (extract16_(inst2, 14) && extract16_(inst2, 12))
+		begin
+		  bl(inst32);
+		end
+  end
+  else
+	begin
+	end
+
