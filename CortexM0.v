@@ -17,7 +17,7 @@ module CortexM0 (
 	output wire	[31:0]	DOUT
 );
 
-reg [31:0]	PC_branch, PC, EXE_PC;
+reg [31:0]	ALU_PC, PC, EXE_PC, SP, LR, APSR_N, APSR_C, APSR_Z, APSR_V;
 reg	branch;
 reg [6:0]	OPCODE;
 reg	APSR_N, APSR_Z, APSR_C, APSR_V;
@@ -41,16 +41,30 @@ assign IADDR = EXE_PC;
 // Initialization Registers
 initial begin
 	PC <= 0;
-	PC_branch <= 0;
+	ALU_PC <= 0;
 	EXE_PC <= 0;
+	branch <= 0;
+	LR <= 0;
+	SP <= 0;
+	APSR_Z <= 0;
+	APSR_N <= 0;
+	APSR_C <= 0;
+	APSR_V <= 0;
 end
 
 // Reset Registers
 always @ (negedge CLK) begin
 	if (RESET_N == 1'b0) begin
 		PC <= 0;
-		PC_branch <= 0;
+		ALU_PC <= 0;
 		EXE_PC <= 0;
+		branch <= 0;
+		LR <= 0;
+		SP <= 0;
+		APSR_Z <= 0;
+		APSR_N <= 0;
+		APSR_C <= 0;
+		APSR_V <= 0;
 	end
 end
 
@@ -71,6 +85,49 @@ decode decode(
 );
 
 EXE	EXE(
+	.INSTR(INSTR),
+	.OPCODE(OPCODE),
+
+	// Input pin
+	.PC_IN(PC),
+	.SP_IN(SP),
+	.APSR_N_IN(APSR_N),
+	.APSR_Z_IN(APSR_Z),
+	.APSR_C_IN(APSR_C),
+	.APSR_V_IN(APSR_V),
+
+	// Register WRITE PORT
+	.WEN1(WEN1),    // WRITE ENABLE1 (ACTIVE HIGH)
+	.WA1(WA1),    // WRITE ADDRESS1
+	.DI1(DI1),     // DATA INPUT1
+	.WEN2(WEN2),    // WRITE ENABLE2 (ACTIVE HIGH)
+	.WA2(WA2),     // WRITE ADDRESS2
+	.DI2(DI2),     // DATA INPUT2
+	// Register READ PORT
+	.RA0(RA0),    // READ ADDRESS 0
+	.RA1(RA1),    // READ ADDRESS 1
+	.RA2(RA2),    // READ ADDRESS 2
+	.DOUT0(DOUT0),  // DATA OUTPUT 0
+	.DOUT1(DOUT1),  // DATA OUTPUT 0
+	.DOUT2(DOUT2),  // DATA OUTPUT 0
+
+	// For data memory
+	.DREQ(DREQ),
+	.DADDR(DADDR),
+	.DRW(DRW),
+	.DSIZE(DSIZE),
+	.DIN(DIN),
+	.DOUT(DOUT)
+
+	// Output pin
+	.PC_OUT(ALU_PC),
+	.BRANCH_OUT(branch),
+	.SP_OUT(SP),
+	.LR_OUT(LR),
+	.APSR_N_OUT(APSR_N),
+	.APSR_Z_OUT(APSR_Z),
+	.APSR_C_OUT(APSR_C),
+	.APSR_V_OUT(APSR_V)
 );
 
 
@@ -103,7 +160,7 @@ module fetch(
 	input	wire	CLK,
 	input	wire	branch,
 	input [31:0]	wire	PC,
-	input [31:0]	wire	PC_branch,
+	input [31:0]	wire	ALU_PC,
 
 	output [31:0]	wire	PC_OUT
 );
@@ -119,8 +176,8 @@ always @ (negedge CLK) begin
 		PC_temp <= PC + 2;
 	end
 	else begin
-		EXE_PC <= PC_branch;
-		PC_temp <= PC_branch + 4;
+		EXE_PC <= ALU_PC;
+		PC_temp <= ALU_PC + 4;
 	end
 end
 
@@ -582,6 +639,13 @@ reg dn, D, N;
 reg [7:0]	imm8;
 reg [31:0]	imm32;
 
+reg [31:0] SRType_LSL, SRType_LSR, SRType_ASR, SRType_ROR, SRType_RRX;
+SRType_LSL = 32'd0;
+SRType_LSR = 32'd1;
+SRType_ASR = 32'd2;
+SRType_ROR = 32'd3;
+SRType_RRX = 32'd4;
+
 always @ (INSTR) begin
 	case (OPCODE)
 		7'd1: begin
@@ -598,19 +662,21 @@ always @ (INSTR) begin
 			shift_n <= {27'b0, imm5};
 
 			if (imm5 == 5'b0) begin
-				// Register READ port
-				assign RA0 = d;
-				Rd <= DOUT0;
-
 				// Register WRITE Port
 				// R[d] = Rm
 				assign WEN1 = 1'b1;
 				assign WA1 = d;
 				assign DI1 = Rm;
 
+				// Register READ port
+				assign RA0 = d;
+				Rd <= DOUT0;
+
 				// Set flags
-				assign APSR_N_OUT = Rd;
-				assign APSR_Z_OUT = (Rd == 0);
+				assign APSR_N_OUT = Rd[31];
+				assign APSR_Z_OUT = (Rd == 32'b0);
+				assign APSR_C_OUT = APSR_C_IN;
+				assign APSR_V_OUT = APSR_V_IN;
 			end
 			else begin
 				Shift_C lsli_shift_c (
@@ -630,8 +696,9 @@ always @ (INSTR) begin
 
 				// Set flags
 				assign APSR_N_OUT = result[31];
-				assign APSR_Z_OUT = (result == 0);
+				assign APSR_Z_OUT = (result == 32'b0);
 				assign APSR_C_OUT = carry;
+				assign APSR_V_OUT = APSR_V_IN;
 			end
 		end
 		7'd2: begin
@@ -666,6 +733,7 @@ always @ (INSTR) begin
 			assign APSR_N_OUT = result[31];
 			assign APSR_Z_OUT = (result == 0);
 			assign APSR_C_OUT = carry;
+			assign APSR_V_OUT = APSR_V_IN;
 		end
 
 		7'd3: begin
@@ -700,7 +768,9 @@ always @ (INSTR) begin
 			assign APSR_N_OUT = result[31];
 			assign APSR_Z_OUT = (result == 0);
 			assign APSR_C_OUT = carry;
+			assign APSR_V_OUT = APSR_V_IN;
 		end
+
 		7'd4: begin
 		/* addr1 */
 			m <= INSTR[8:6];
@@ -710,6 +780,7 @@ always @ (INSTR) begin
 			reg [31:0]	shifted, result, carry, overflow, Rm, Rn, shift_n;
 
 			// Rm = R[m]
+			// Rn = R[n]
 			assign RA0 = n;
 			assign RA1 = m;
 			Rn <= DOUT0;
@@ -779,7 +850,7 @@ always @ (INSTR) begin
 				.carry(carry),
 				.overflow(overflow),
 				.x(Rn),
-				.y(!shifted),
+				.y(~shifted),
 				.cin(1'b1)
 			);
 
@@ -850,12 +921,12 @@ always @ (INSTR) begin
 			Rn <= DOUT0;
 			Rd <= DOUT1;
 			
-			ADDwithCarry add3i_add_with_carry (
+			ADDwithCarry sub3i_add_with_carry (
 				.result(result),
 				.carry(carry),
 				.overflow(overflow),
 				.x(Rn),
-				.y(!imm32),
+				.y(~imm32),
 				.cin(1'b1)
 			);
 
@@ -888,6 +959,7 @@ always @ (INSTR) begin
 			assign APSR_N_OUT = imm32[31];
 			assign APSR_Z_OUT = (imm32 == 0);
 			assign APSR_C_OUT = APSR_C_IN;
+			assign APSR_V_OUT = APSR_V_IN;
 		end
 
 		7'd9: begin
@@ -907,7 +979,7 @@ always @ (INSTR) begin
 				.carry(carry),
 				.overflow(overflow),
 				.x(Rn),
-				.y(!imm32),
+				.y(~imm32),
 				.cin(1'b1)
 			);
 
@@ -971,7 +1043,7 @@ always @ (INSTR) begin
 				.carry(carry),
 				.overflow(overflow),
 				.x(Rn),
-				.y(!imm32),
+				.y(~imm32),
 				.cin(1'b1)
 			);
 
@@ -1257,12 +1329,12 @@ always @ (INSTR) begin
 				.carry_in(APSR_C_IN)
 			);
 
-			ADDwithCarry adcr_add_with_carry (
+			ADDwithCarry sbcr_add_with_carry (
 				.result(result),
 				.carry(carry),
 				.overflow(overflow),
 				.x(Rn),
-				.y(!shifted),
+				.y(~shifted),
 				.cin(APSR_C_IN)
 			);
 
@@ -1375,7 +1447,7 @@ always @ (INSTR) begin
 				.result(result),
 				.carry(carry),
 				.overflow(overflow),
-				.x(!Rn),
+				.x(~Rn),
 				.y(imm32),
 				.cin(1'b1)
 			);
@@ -1423,7 +1495,7 @@ always @ (INSTR) begin
 				.carry(carry),
 				.overflow(overflow),
 				.x(Rn),
-				.y(!shifted),
+				.y(~shifted),
 				.cin(1'b1)
 			);
 
@@ -1521,7 +1593,7 @@ always @ (INSTR) begin
 			n <= INSTR[5:3];
 
 			reg [31:0]	op1, op2, Rn, Rm, Rd;
-			wire [64:0]	result;
+			reg [64:0]	result;
 			
 			// Rn = R[n]
 			// Rm = R[m]
@@ -1530,7 +1602,7 @@ always @ (INSTR) begin
 			Rn <= DOUT0;
 			Rm <= DOUT1;
 
-			assign result = Rn * Rm;
+			reg result = Rn * Rm;
 
 			// Register WRITE Port
 			// R[d] = Rn | shifted
@@ -1574,7 +1646,7 @@ always @ (INSTR) begin
 
 			// Register WRITE Port
 			// R[d] = Rn & NOT(shifted)
-			result <= Rn & !shifted;
+			result <= Rn & (~shifted);
 			assign WEN1 = 1'b1;
 			assign WA1 = d;
 			assign DI1 = result;
@@ -1611,7 +1683,7 @@ always @ (INSTR) begin
 
 			// Register WRITE Port
 			// R[d] = NOT(shifted)
-			result <= !shifted;
+			result <= ~shifted;
 			assign WEN1 = 1'b1;
 			assign WA1 = d;
 			assign DI1 = result;
@@ -1645,7 +1717,8 @@ always @ (INSTR) begin
 
 			if ( {DN, n} == 4'hD || mm == 5'hD) begin
 				/* SEE ADD (SP plus register) */
-				d <= 4'd13;
+				reg [31:0] dd;
+				dd <= 13;
 
 				Shift addr2_shift_1 (
 					.result(shifted),
@@ -1661,13 +1734,13 @@ always @ (INSTR) begin
 				.overflow(overflow),
 				.x(SP_IN),
 				.y(shifted),
-				.cin(32'b0)
+				.cin(0)
 				);
 
 				// Register WRITE Port
 				// R[d] = result
 				assign WEN1 = 1'b1;
-				assign WA1 = d;
+				assign WA1 = dd;
 				assign DI1 = result;
 
 				// no flag settings
@@ -1747,7 +1820,7 @@ always @ (INSTR) begin
 				.carry(carry),
 				.overflow(overflow),
 				.x(Rn),
-				.y(!shifted),
+				.y(~shifted),
 				.cin(1'b1)
 			);
 
@@ -1901,7 +1974,7 @@ always @ (INSTR) begin
 
 			/* MemU[address, 2] = R[t]<15, 0> */
 			assign DREQ = 1;
-			assign DADDR = address;
+			assign DADDR = address & 32'hFFFFFFFC;
 			assign DWE = 1;
 			assign DSIZE = 2'b01;
 			assign DOUT = Rt;
@@ -1936,7 +2009,7 @@ always @ (INSTR) begin
 
 			/* MemU[address, 1] = R[t]<7,0> */
 			assign DREQ = 1;
-			assign DADDR = address;
+			assign DADDR = address & 32'hFFFFFFFC;
 			assign DWE = 1;
 			assign DSIZE = 2'b00;
 			assign DOUT = Rt;
@@ -1979,7 +2052,7 @@ always @ (INSTR) begin
 			// R[t] = Rt
 			assign WEN1 = 1'b1;
 			assign WA1 = t;
-			assign DI1 = Rt;
+			assign DI1 = {24{Rt[7]} ,Rt[7:0]};
 		end
 
 		7'd38: begin
@@ -2051,7 +2124,7 @@ always @ (INSTR) begin
 
 			/* Rt = MemU[address, 2] */
 			assign DREQ = 1;
-			assign DADDR = address;
+			assign DADDR = address & 32'hFFFFFFFC;
 			assign DWE = 0;
 			assign DSIZE = 2'b01;
 			Rt <= DIN;
@@ -2091,7 +2164,7 @@ always @ (INSTR) begin
 
 			/* Rt = MemU[address, 1] */
 			assign DREQ = 1;
-			assign DADDR = address;
+			assign DADDR = address & 32'hFFFFFFFC;
 			assign DWE = 0;
 			assign DSIZE = 2'b00;
 			Rt <= DIN;
@@ -2131,7 +2204,7 @@ always @ (INSTR) begin
 
 			/* Rt = MemU[address, 2] */
 			assign DREQ = 1;
-			assign DADDR = address;
+			assign DADDR = address & 32'hFFFFFFFC;
 			assign DWE = 0;
 			assign DSIZE = 2'b01;
 			Rt <= DIN;
@@ -2139,7 +2212,7 @@ always @ (INSTR) begin
 			// R[t] = Rt
 			assign WEN1 = 1'b1;
 			assign WA1 = t;
-			assign DI1 = Rt;
+			assign DI1 = {16{Rt[15]}, Rt[15:0]};
 		end
 
 		7'd42: begin
@@ -2161,7 +2234,7 @@ always @ (INSTR) begin
 
 			/* MemU[address, 4] = R[t] */
 			assign DREQ = 1;
-			assign DADDR = address;
+			assign DADDR = address & 32'hFFFFFFFC;
 			assign DWE = 1;
 			assign DSIZE = 2'b10;
 			assign DOUT = Rt;
@@ -2172,7 +2245,7 @@ always @ (INSTR) begin
 			t <= INSTR[2:0];
 			n <= INSTR[5:3];
 			imm5 <= INSTR[10:6];
-			imm32 <= {27'b0, imm5};
+			imm32 <= {25'b0, (imm5 << 2)};
 
 			reg [31:0] Rn, Rt, address;
 			// Rn = R[n]
@@ -2213,7 +2286,7 @@ always @ (INSTR) begin
 
 			/* MemU[address, 1] = R[t]<7, 0> */
 			assign DREQ = 1;
-			assign DADDR = address;
+			assign DADDR = address & 32'hFFFFFFFC;
 			assign DWE = 1;
 			assign DSIZE = 2'b00;
 			assign DOUT = Rt;
@@ -2235,7 +2308,7 @@ always @ (INSTR) begin
 
 			/* Rt = MemU[address, 1] */
 			assign DREQ = 1;
-			assign DADDR = address;
+			assign DADDR = address & 32'hFFFFFFFC;
 			assign DWE = 0;
 			assign DSIZE = 2'b00;
 			Rt <= DIN;
@@ -2265,7 +2338,7 @@ always @ (INSTR) begin
 
 			/* MemU[address, 2] = R[t]<15, 0> */
 			assign DREQ = 1;
-			assign DADDR = address;
+			assign DADDR = address & 32'hFFFFFFFC;
 			assign DWE = 1;
 			assign DSIZE = 2'b01;
 			assign DOUT = Rt;
@@ -2287,7 +2360,7 @@ always @ (INSTR) begin
 
 			/* Rt = MemU[address, 2] */
 			assign DREQ = 1;
-			assign DADDR = address;
+			assign DADDR = address & 32'hFFFFFFFC;
 			assign DWE = 0;
 			assign DSIZE = 2'b01;
 			Rt <= DIN;
@@ -2423,7 +2496,7 @@ always @ (INSTR) begin
 				.carry(carry),
 				.overflow(overflow),
 				.x(SP_IN),
-				.y(!imm32),
+				.y(~imm32),
 				.cin(1)
 			);
 
@@ -2507,18 +2580,16 @@ always @ (INSTR) begin
 		/* push */
 			N <= INSTR[8];
 			imm8 <= INSTR[7:0];
-			reg [31:0] registers, address, address_next, count;
+			reg [31:0] registers, address, count;
 			registers <= (N<<14) | imm8;
 			BitCount push_BitCount (
 				.value(registers),
 				.count(count)
 			);
 			address <= SP_IN - 4 * count;
-			address_next <= address;
 
 			integer i;
 			for (i = 0; i < 15; i = i + 1) begin
-				address <= address_next;
 				if (registers[i] == 1'b1) begin
 					/* MemU[address, 4] = R[i] */
 					reg [31:0] Ri;
@@ -2530,10 +2601,7 @@ always @ (INSTR) begin
 					assign DSIZE = 2'b10;
 					assign DOUT = Ri;
 
-					address_next <= address + 4;
-				end
-				else begin
-					address_next <= address;
+					address <= address + 4;
 				end
 			end
 
@@ -2616,10 +2684,9 @@ always @ (INSTR) begin
 			register_list <= INSTR[7:0];
 			registers <= (N << 15) | register_list;
 
-			address_next <= SP_IN;
+			address <= SP_IN;
 
 			for (i = 0; i < 15; i = i + 1) begin
-				address <= address_next;
 				if (registers[i] == 1'b1) begin
 					reg [31:0] Ri;
 					assign DREQ = 1;
@@ -2633,25 +2700,30 @@ always @ (INSTR) begin
 					assign WA1 = i;
 					assign DI1 = Ri;
 
-					address_next <= address + 4;
+					address <= address + 4;
 				end
-				else begin
-					address_next <= address;
-				end
+			end
+
+			reg [31:0] count;
+			BitCount pop_BitCount (
+				.value(registers),
+				.count(count)
+			);
+
+			assign SP_OUT <= SP_IN + 4 * count;
 		end
 
 		7'd63: begin
 		/* stm */
 			d <= INSTR[10:8];
 			imm8 <= INSTR[7:0];
-			reg [31:0] registers, address, address_next, count;
+			reg [31:0] registers, address, count;
 			
 			assign RA0 = d;
 			address <= DOUT0;
 
 			integer i;
 			for (i = 0; i < 15; i = i + 1) begin
-				address <= address_next;
 				/* MemU[address, 4] = R[i] */
 				reg [31:0] Ri;
 				assign RA0 = i;
@@ -2662,7 +2734,7 @@ always @ (INSTR) begin
 				assign DWE = 1;
 				assign DSIZE = 2'b10;
 				assign DOUT = Ri;
-				address_next <= address + 4;
+				address <= address + 4;
 			end
 
 			reg [31:0] Rd, newRd, count;
@@ -2674,7 +2746,7 @@ always @ (INSTR) begin
 				.count(count)
 			);
 
-			newRd = Rd + 4 * count;
+			newRd <= Rd + 4 * count;
 			
 			// R[d] = newRd
 			assign WEN1 = 1'b1;
@@ -2782,5 +2854,54 @@ always @ (INSTR) begin
 		end
 	endcase
 end
+endmodule
+
+////////////////////////////////////////////////
+// EXE Submodule
+
+module Shift_C (
+	output wire [31:0]	result,
+	output wire [31:0]	carry_out,
+	input wire  [31:0]	value,
+	input wire  [31:0]	SRType,
+	input wire  [31:0]	amount,
+	input wire carry_in
+);
 
 endmodule
+///////////////////////////////////////////////
+module Shift (
+	output wire [31:0]	result,
+	input wire  [31:0]	value,
+	input wire  [31:0]	SRType,
+	input wire  [31:0]	amount,
+	input wire carry_in
+);
+
+endmodule
+///////////////////////////////////////////////
+module ADDwithCarry (
+	output wire [31:0]	result,
+	output wire [31:0]	carry,
+	output wire [31:0]	overflow,
+	input wire  [31:0]	x,
+	input wire  [31:0]	y,
+	input wire carry_in
+);
+
+endmodule
+//////////////////////////////////////////////
+module BitCount (
+	input wire [31:0]	value,
+	output wire [31:0]	count
+);
+
+endmodule
+//////////////////////////////////////////////
+module InitBlock (
+	input wire [31:0] cond,
+	output wire pass
+);
+
+endmodule
+/////////////////////////////////////////////
