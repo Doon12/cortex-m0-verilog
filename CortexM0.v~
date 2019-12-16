@@ -2808,6 +2808,10 @@ always @ (INSTR) begin
 			reg cond_pass;
 			InitBlock b_c_InitBlock (
 				.condition(cond),
+				.APSR_N(APSR_N_IN),
+				.APSR_Z(APSR_Z_IN),
+				.APSR_C(APSR_C_IN),
+				.APSR_V(APSR_V_IN),
 				.pass(cond_pass)
 			);
 
@@ -2895,13 +2899,75 @@ module BitCount (
 	input wire [31:0]	value,
 	output wire [31:0]	count
 );
+reg [31:0] temp <= 0;
+integer i;
+for (i = 0; i < 32; i = i + 1) begin
+	if (value[i] == 1'b1) begin
+		temp <= temp + 1;
+	end
+end
+
+assign count = temp;
 
 endmodule
 //////////////////////////////////////////////
 module InitBlock (
 	input wire [31:0] cond,
+	input wire [31:0] APSR_N,
+	input wire [31:0] APSR_Z,
+	input wire [31:0] APSR_C,
+	input wire [31:0] APSR_V,
 	output wire pass
 );
 
+always @ (cond) begin
+	case (cond)
+		0: begin
+			assign pass = (APSR_Z == 1);
+		end
+		1: begin
+			assign pass = (APSR_Z == 0);
+		end
+		2: begin
+			assign pass = (APSR_C == 1);
+		end
+		3: begin
+			assign pass = (APSR_C == 0);
+		end
+		4: begin
+			assign pass = (APSR_N == 1);
+		end
+		5: begin
+			assign pass = (APSR_N == 0);
+		end
+		6: begin
+			assign pass = (APSR_V == 1);
+		end
+		7: begin
+			assign pass = (APSR_V == 0);
+		end
+		8:begin
+			assign pass = (APSR_C == 1) && (APSR_Z == 0);
+		end
+		9: begin
+			assign pass = (APSR_C == 0) && (APSR_Z == 1);
+		end
+		10: begin
+			assign pass = (APSR_N == APSR_V);
+		end
+		11: begin
+			assign pass = (APSR_N != APSR_V);
+		end
+		12: begin
+			assign pass = (APSR_Z == 0) && (APSR_N == APSR_V);
+		end
+		13: begin
+			assign pass = (APSR_Z == 1) && (APSR_N != APSR_V);
+		end
+		14: begin
+			assign pass = 1;
+		end
+	endcase
+end
 endmodule
 /////////////////////////////////////////////
